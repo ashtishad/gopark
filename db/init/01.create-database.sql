@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS slots
     slot_id        UUID    DEFAULT uuid_generate_v4(),
     parking_lot_id INTEGER NOT NULL REFERENCES parking_lots (id),
     slot_number    INTEGER NOT NULL,
-    distance       INTEGER NOT NULL,
     is_available   BOOLEAN DEFAULT TRUE,
     is_maintenance BOOLEAN DEFAULT FALSE
 );
