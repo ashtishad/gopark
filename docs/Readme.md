@@ -76,47 +76,24 @@ Possible Errors
 * Internal Server Error (500): Database insertion failure.
 * Conflict error (409) : Parking lot with same name already exists.
 
-2.Get Parking Lot Status, GET /parking-lots/:id/slots
 
-Request None (Parking lot ID is part of the URL path)
-
-Response
-```
-[
-{
-"id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
-"slot_number": 1,
-"is_available": true,
-"is_maintenance": false
-},
-{
-"id": "302f634a-8171-4069-96b5-365b0b6063af",
-"slot_number": 2,
-"is_available": false, // Occupied by a vehicle
-"is_maintenance": false
-},
-// ... more slots
-]
-```
-
-Possible Errors
-* Not Found (404): Parking lot with specified ID doesn't exist.
-* Internal Server Error (500): Database query failure.
-
-3.Park Vehicle, POST /parking-lots/:id/park
+2.Park Vehicle, POST /parking-lots/:id/park
 
 Request
 ```
 {
-"registration_number": "AB-1234"
+"registrationNumber": "AB-1234"
 }
 ```
 
 Response (Success)
 ```
 {
-"slot_id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
-"parked_at": "2023-11-22T14:51:20Z"
+    "id": "ab423c8e-2c57-410f-a6fc-6b0af3641baf",
+    "registrationNumber": "AB-1234",
+    "slotId": "fbb7afa1-8d64-4c34-9a2f-baef18601646",
+    "parkedAt": "2024-03-09T20:36:09.570456Z",
+    "unparkedAt": null
 }
 ```
 
@@ -150,6 +127,33 @@ Possible Errors
 * Bad Request (400): Missing or invalid registration_number.
 * Not Found (404): Parking lot or vehicle with the given registration number doesn't exist.
 * Internal Server Error (500): Database error or error calculating parking duration.
+
+2.Get Parking Lot Status, GET /parking-lots/:id/slots
+
+Request None (Parking lot ID is part of the URL path)
+
+Response
+```
+[
+{
+"id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
+"slot_number": 1,
+"is_available": true,
+"is_maintenance": false
+},
+{
+"id": "302f634a-8171-4069-96b5-365b0b6063af",
+"slot_number": 2,
+"is_available": false, // Occupied by a vehicle
+"is_maintenance": false
+},
+// ... more slots
+]
+```
+
+Possible Errors
+* Not Found (404): Parking lot with specified ID doesn't exist.
+* Internal Server Error (500): Database query failure.
 
 5.Daily Report, GET /parking-lots/:id/report/:date (e.g., /parking-lots/123/report/2023-11-22)
 
