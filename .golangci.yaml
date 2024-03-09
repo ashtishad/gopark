@@ -28,7 +28,6 @@ linters:
     - goimports
     - nilnil
     - tagalign
-    - wrapcheck
     - gosec
     - asciicheck
     - bodyclose
@@ -40,7 +39,6 @@ linters:
     - goconst
     - gocritic
     - tagliatelle
-    - lll
     - funlen
 
 linters-settings:
