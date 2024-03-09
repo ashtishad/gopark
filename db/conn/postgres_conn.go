@@ -17,7 +17,7 @@ import (
 // The resulting DSN URL is in the format:
 // "postgres://user:password@host:port/dbname?sslmode=disable&timezone=UTC"
 // postgres://postgres:postgres@127.0.0.1:5432/gopark?sslmode=disable&timezone=UTC
-func GetDsnURL(l *slog.Logger) *url.URL {
+func GetDsnURL() *url.URL {
 	dsn := url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(os.Getenv("DB_USER"), os.Getenv("DB_PASSWD")),
@@ -34,7 +34,7 @@ func GetDsnURL(l *slog.Logger) *url.URL {
 
 // GetDBClient creates a new database connection and returns *sql.DB instance.
 func GetDBClient(l *slog.Logger) *sql.DB {
-	connConfig, err := pgx.ParseConfig(GetDsnURL(l).String())
+	connConfig, err := pgx.ParseConfig(GetDsnURL().String())
 
 	if err != nil {
 		l.Error("error parsing pgx conn config", "err", err)

@@ -2,7 +2,6 @@ package conn
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"testing"
 )
@@ -28,8 +27,7 @@ func TestGetDsnURL(t *testing.T) {
 	expected := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
 		dbUser, dbPasswd, dbHost, dbPort, dbName)
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	result := GetDsnURL(logger).String()
+	result := GetDsnURL().String()
 
 	if result != expected {
 		t.Errorf("getDSNString() returned %s; expected %s", result, expected)
