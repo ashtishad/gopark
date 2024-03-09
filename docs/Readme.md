@@ -21,4 +21,119 @@ Focus: Close the solution is to the requirements, code quality, API design, data
 5) For simplicity, Payment gateway is not needed. Assume all payments will be success.
 6) No waiting queue. But error conditions like Full parking should be handled and appropriate response should be returned.
 7) Historical parking data should be there. But we will request data of 1 day only for any particular day in the past.
-8) Dashboard or Report is not needed. We are only focussing on backend api response. 
+8) Dashboard or Report is not needed. We are only focussing on backend api response.
+
+### Request/response payload structures (JSON)
+
+1.Create A Parking Lot: GET /parking-lots/:id/slots
+
+Request: 
+```{
+"name": "Parking Lot A"
+}
+```
+Response:
+
+```
+{
+"id": "0e2a45d6-2d19-4000-a9f9-640f66a9669d",
+"name": "Parking Lot A"  
+}
+```
+
+Possible Errors
+* Bad Request (400): Missing or invalid parking lot name.
+* Internal Server Error (500): Database insertion failure.
+
+2.Get Parking Lot Status, GET /parking-lots/:id/slots
+
+Request None (Parking lot ID is part of the URL path)
+
+Response
+```
+[
+{
+"id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
+"slot_number": 1,
+"is_available": true,
+"is_maintenance": false
+},
+{
+"id": "302f634a-8171-4069-96b5-365b0b6063af",
+"slot_number": 2,
+"is_available": false, // Occupied by a vehicle
+"is_maintenance": false
+},
+// ... more slots
+]
+```
+
+Possible Errors
+* Not Found (404): Parking lot with specified ID doesn't exist.
+* Internal Server Error (500): Database query failure.
+
+3.Park Vehicle, POST /parking-lots/:id/park
+
+Request
+```
+{
+"registration_number": "AB-1234"
+}
+```
+
+Response (Success)
+```
+{
+"slot_id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
+"parked_at": "2023-11-22T14:51:20Z"
+}
+```
+
+Possible Errors
+* Bad Request (400): Missing or invalid registration_number.
+* Not Found (404): Parking lot doesn't exist.
+* Conflict (409): The parking lot is full.
+* Internal Server Error (500): Database error.
+
+4.Unpark Vehicle, POST /parking-lots/:id/unpark
+
+Request
+```
+{
+"registration_number": "AB-1234"
+}
+```
+
+
+Response (Success)
+```
+{
+"slot_id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
+"parked_at": "2023-11-22T14:51:20Z",
+"unparked_at": "2023-11-22T16:33:58Z",
+"fee": 30 // (3 hours * 10)
+}
+```
+
+Possible Errors
+* Bad Request (400): Missing or invalid registration_number.
+* Not Found (404): Parking lot or vehicle with the given registration number doesn't exist.
+* Internal Server Error (500): Database error or error calculating parking duration.
+
+5.Daily Report, GET /parking-lots/:id/report/:date (e.g., /parking-lots/123/report/2023-11-22)
+
+Request None (Parking lot ID and date are part of the URL path)
+
+Response:
+
+```{
+"total_vehicles_parked": 5,
+"total_parking_time": 20, // Hours
+"total_fee_collected": 200
+}
+```
+
+Possible Errors
+* Not Found (404): Parking lot doesn't exist.
+* Bad Request (400): Invalid date format.
+* Internal Server Error (500): Database query issues.
