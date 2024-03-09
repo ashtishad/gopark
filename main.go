@@ -39,6 +39,9 @@ func main() {
 	parkingLotRepo := domain.NewParkingLotRepoDB(dbClient, logger)
 	parkingLotHandler := transport.ParkingLotHandler{Repo: parkingLotRepo, Logger: logger}
 
+	vehicleRepo := domain.NewVehicleRepoDB(dbClient, logger)
+	vehicleHandler := transport.VehicleHandler{Repo: vehicleRepo, Logger: logger}
+
 	// 5. Structured Server Configuration
 	srv := &http.Server{
 		Addr:              net.JoinHostPort(os.Getenv("API_HOST"), os.Getenv("API_PORT")),
@@ -52,6 +55,7 @@ func main() {
 	// 6. Route Registration (using a router or a simple mux)
 	router := http.NewServeMux()
 	router.HandleFunc("POST /parking-lots", parkingLotHandler.CreateParkingLot)
+	router.HandleFunc("POST /parking-lots/{id}/park", vehicleHandler.Park)
 	srv.Handler = router
 
 	// 7. Start the Server
