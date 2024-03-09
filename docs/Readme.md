@@ -2,7 +2,8 @@
 
 Develop a parking lot application where we should be able to perform the following operations:
 1) Parking manager can create parking lots with desired parking spaces/slots in each parking lot.
-2) The user (Vehicle owner) can choose any parking lot & can park his vehicle in the nearest parking slot available in that lot (e.g. if parking slots are numbered 1,2,3....n, then we still start from 1 and pick the available one)
+2) The user (Vehicle owner) can choose any parking lot & can park his vehicle in the nearest parking slot available in that lot 
+(e.g. if parking slots are numbered 1,2,3....n, then we still start from 1 and pick the available one).
 3) The user can unpark his vehicle.
 4) When the user unparks, the response should be successful along with the parking fee that will be calculated as Rs. 10 * the Number of hours the vehicle has been parked. eg If parked for 1 hour 5 minutes, it will be 10 * 2 = 20
 5) Parking manager can view his current parking lot status (eg which cars are parked in which slots)
@@ -25,25 +26,55 @@ Focus: Close the solution is to the requirements, code quality, API design, data
 
 ### Request/response payload structures (JSON)
 
-1.Create A Parking Lot: GET /parking-lots/:id/slots
+1.Create A Parking Lot: POST /parking-lots/:id/slots
 
 Request: 
-```{
-"name": "Parking Lot A"
+```
+{
+    "name": "Gladson Load Parking",
+    "desiredSlots": 4
 }
 ```
 Response:
 
 ```
 {
-"id": "0e2a45d6-2d19-4000-a9f9-640f66a9669d",
-"name": "Parking Lot A"  
+    "id": "bad082a1-1132-4eee-a68f-0469786dd5bb",
+    "name": "Gladson Load Parking",
+    "desiredSlots": 4,
+    "slots": [
+        {
+            "id": "d8a2351b-0f0c-47cb-87a2-22fb7a1eec07",
+            "slotNumber": 1,
+            "isAvailable": true,
+            "isMaintenance": false
+        },
+        {
+            "id": "532a76df-eb88-4dc1-a2ea-d44dc70e2129",
+            "slotNumber": 2,
+            "isAvailable": true,
+            "isMaintenance": false
+        },
+        {
+            "id": "3b665cae-304d-4b16-9886-3608f41e3f30",
+            "slotNumber": 3,
+            "isAvailable": true,
+            "isMaintenance": false
+        },
+        {
+            "id": "75598cd7-0498-4131-9dc1-c234a206f4a7",
+            "slotNumber": 4,
+            "isAvailable": true,
+            "isMaintenance": false
+        }
+    ]
 }
 ```
 
 Possible Errors
 * Bad Request (400): Missing or invalid parking lot name.
 * Internal Server Error (500): Database insertion failure.
+* Conflict error (409) : Parking lot with same name already exists.
 
 2.Get Parking Lot Status, GET /parking-lots/:id/slots
 
