@@ -38,9 +38,9 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
 // ToDo: Make Registration Number Unique
 func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, registrationNumber string) (*Vehicle, common.AppError) {
-	plID, appErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
-	if appErr != nil {
-		return nil, appErr
+	plID, apiErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
+	if apiErr != nil {
+		return nil, apiErr
 	}
 
 	tx, err := v.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -57,6 +57,20 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 			}
 		}
 	}()
+
+	// Check for existing vehicle with SELECT EXISTS
+	var exists bool
+	err = tx.QueryRowContext(ctx, `
+        SELECT EXISTS(SELECT 1 FROM vehicles WHERE registration_number = $1)
+    `, registrationNumber).Scan(&exists)
+
+	if err != nil {
+		v.l.Error("error checking vehicle with same reg name existence", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	} else if exists {
+		v.l.Error("vehicle with this registration number already exists", "registrationNumber", registrationNumber)
+		return nil, common.NewConflictError("vehicle with this registration number already exists")
+	}
 
 	slotID, slotUUID, appErr := v.findNearestAvailableSlot(ctx, tx, plID)
 	if err != nil {
@@ -167,7 +181,7 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 	vehicle.RegistrationNumber = regNum
 
 	// 2. Calculate parking fee
-	unparkedAt := time.Now().UTC()
+	unparkedAt := time.Now()
 	parkingDuration := unparkedAt.Sub(vehicle.ParkedAt)
 	hours := int(math.Ceil(parkingDuration.Hours())) // Round up to the nearest hour
 	vehicle.Fee = hours * 10
