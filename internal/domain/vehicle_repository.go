@@ -36,7 +36,6 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 // 3. Creates a new vehicle record associated with the slot and the current UTC timestamp.
 // 4. Returns a 409 Conflict error if the parking lot is full.
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
-// ToDo: Make Registration Number Unique
 func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, regNum string) (*Vehicle, common.AppError) {
 	plID, apiErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
 	if apiErr != nil {
@@ -58,7 +57,6 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 		}
 	}()
 
-	// Find existing vehicle with the same registration number that hasn't been unparked.
 	if appErr := v.isVehicleAlreadyParked(ctx, tx, regNum); appErr != nil {
 		return nil, appErr
 	}
@@ -158,7 +156,6 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		}
 	}()
 
-	// 1. Find the vehicle to unpark with registration_number
 	var vehicle Vehicle
 	var slotID int
 	err = tx.QueryRowContext(ctx, `
@@ -176,7 +173,6 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
-	// Get slotUUIDFromID
 	slotUUID, appErr := getSlotUUIDByID(ctx, tx, v.l, slotID)
 	if appErr != nil {
 		return nil, appErr
@@ -184,14 +180,12 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 	vehicle.SlotID = slotUUID
 	vehicle.RegistrationNumber = regNum
 
-	// 2. Calculate parking fee
 	unparkedAt := time.Now()
 	parkingDuration := unparkedAt.Sub(vehicle.ParkedAt)
 	hours := int(math.Ceil(parkingDuration.Hours())) // Round up to the nearest hour
 	vehicle.Fee = hours * 10
 	vehicle.UnparkedAt = &unparkedAt
 
-	// 3. Update the vehicle record
 	_, err = tx.ExecContext(ctx, `
         UPDATE vehicles 
         SET unparked_at = $1
@@ -201,7 +195,6 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		return nil, common.NewInternalServerError("error updating vehicle", err)
 	}
 
-	// 4. Mark the slot as available
 	_, err = tx.ExecContext(ctx, "UPDATE slots SET is_available = true WHERE id = $1", slotID)
 	if err != nil {
 		v.l.Error("error updating slot status", "err", err)

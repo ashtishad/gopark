@@ -54,13 +54,13 @@ func (h *ParkingLotHandler) GetParkingLotStatus(w http.ResponseWriter, r *http.R
 }
 
 func (h *ParkingLotHandler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
-	plUUID, err := uuid.Parse(r.PathValue("id")) // go 1.22 introduced path param from routes.
+	plUUID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot ID format"})
 		return
 	}
 
-	// Validate date format (YYYY-MM-DD)
+	// Validate date format (YYYY-MM-DD) -> 4 digit year, 2 digit month, 2 digit day.
 	reportDate, err := time.Parse("2006-01-02", r.PathValue("date"))
 	if err != nil {
 		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot date format"})
