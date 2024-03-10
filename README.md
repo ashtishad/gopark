@@ -104,27 +104,41 @@ Possible Errors
 * Not Found (404): Parking lot or vehicle with the given registration number doesn't exist.
 * Internal Server Error (500): Database error or error calculating parking duration.
 
-4.Get Parking Lot Status, GET /parking-lots/:id/slots
+4.Get Parking Lot Status, GET /parking-lots/:id/status
+Parking manager can view his current parking lot status, which cars are parked in which slots
 
 Request None (Parking lot ID is part of the URL path)
 
 Response
 ```
-[
 {
-"id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
-"slot_number": 1,
-"is_available": true,
-"is_maintenance": false
-},
-{
-"id": "302f634a-8171-4069-96b5-365b0b6063af",
-"slot_number": 2,
-"is_available": false, // Occupied by a vehicle
-"is_maintenance": false
-},
-// ... more slots
-]
+    "parkingLotId": "e391fda0-4141-46a8-b805-983228ed20a2",
+    "name": "Blue Road",
+    "slots": [
+        {
+            "slotId": "f7be7f2e-5e15-4627-8e22-980f54b825a9",
+            "registrationNumber": {
+                "String": "AB",
+                "Valid": true
+            },
+            "parkedAt": "2024-03-10T16:50:17.535042+06:00"
+        },
+        {
+            "slotId": "9f21ab14-0dbc-4751-b4bf-3d713a05c7bb",
+            "registrationNumber": {
+                "String": "",
+                "Valid": false
+            }
+        },
+        {
+            "slotId": "0a4b3b4a-83d8-42bc-b6b4-704ae4feba58",
+            "registrationNumber": {
+                "String": "",
+                "Valid": false
+            }
+        },
+    ]
+}
 ```
 
 Possible Errors
