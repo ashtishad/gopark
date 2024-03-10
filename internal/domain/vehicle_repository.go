@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/ashtishad/gopark/internal/common"
@@ -14,6 +15,7 @@ import (
 // VehicleRepository defines the interface for interacting with vehicle data(park, unpark) in the postgresql database.
 type VehicleRepository interface {
 	ParkVehicle(ctx context.Context, parkingLotID uuid.UUID, registrationNumber string, userID uuid.UUID) (*Vehicle, common.AppError)
+	UnparkVehicle(ctx context.Context, registrationNumber string) (*Vehicle, common.AppError)
 }
 
 type VehicleRepositoryDB struct {
@@ -34,6 +36,7 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 // 3. Creates a new vehicle record associated with the slot and the current UTC timestamp.
 // 4. Returns a 409 Conflict error if the parking lot is full.
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
+// ToDo: Make Registration Number Unique
 func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, registrationNumber string) (*Vehicle, common.AppError) {
 	plID, appErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
 	if appErr != nil {
@@ -112,4 +115,99 @@ func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *
 	default:
 		return slotID, slotUUID, nil
 	}
+}
+
+// UnparkVehicle performs the following within a serializable transaction to guarantee atomicity, and prevent race conditions:
+// 1. Finds the parked vehicle using the registration number, ensuring it hasn't already been unparked.
+// 2. Calculates the parking fee based on the vehicle's parking duration.
+// 3. Updates the vehicle record with the unparking timestamp and calculated fee.
+// 4. Marks the corresponding slot as available.
+// 5. Returns a Conflict error if the vehicle isn't found or has already been unparked.
+// 6. Returns an Internal Server Error if any unexpected database errors occur.
+func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) (*Vehicle, common.AppError) {
+	tx, err := v.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		v.l.Error("error creating unpark vehicle transaction", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+
+	defer func() {
+		if err != nil {
+			txErr := tx.Rollback()
+			if txErr != nil {
+				v.l.Error("error rolling back the transaction", "err", txErr)
+			}
+		}
+	}()
+
+	// 1. Find the vehicle to unpark with registration_number
+	var vehicle Vehicle
+	var slotID int
+	err = tx.QueryRowContext(ctx, `
+        SELECT uuid, slot_id, parked_at, unparked_at
+        FROM vehicles 
+        WHERE registration_number = $1 AND unparked_at IS NULL 
+        FOR UPDATE`, regNum).Scan(
+		&vehicle.ID, &slotID, &vehicle.ParkedAt, &vehicle.UnparkedAt)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		v.l.Error("vehicle not found or already unparked", "registration_number", err)
+		return nil, common.NewConflictError("vehicle not found or already unparked")
+	} else if err != nil {
+		v.l.Error("error finding vehicle", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+
+	// Get slotUUIDFromID
+	slotUUID, appErr := getSlotUUIDByID(ctx, tx, v.l, slotID)
+	if appErr != nil {
+		return nil, appErr
+	}
+	vehicle.SlotID = slotUUID
+	vehicle.RegistrationNumber = regNum
+
+	// 2. Calculate parking fee
+	unparkedAt := time.Now().UTC()
+	parkingDuration := unparkedAt.Sub(vehicle.ParkedAt)
+	hours := int(math.Ceil(parkingDuration.Hours())) // Round up to the nearest hour
+	vehicle.Fee = hours * 10
+	vehicle.UnparkedAt = &unparkedAt
+
+	// 3. Update the vehicle record
+	_, err = tx.ExecContext(ctx, `
+        UPDATE vehicles 
+        SET unparked_at = $1
+        WHERE uuid = $2`, unparkedAt, vehicle.ID)
+	if err != nil {
+		v.l.Error("error updating vehicle", "err", err)
+		return nil, common.NewInternalServerError("error updating vehicle", err)
+	}
+
+	// 4. Mark the slot as available
+	_, err = tx.ExecContext(ctx, "UPDATE slots SET is_available = true WHERE id = $1", slotID)
+	if err != nil {
+		v.l.Error("error updating slot status", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+
+	if cmtErr := tx.Commit(); cmtErr != nil {
+		v.l.Error("error committing transaction", "err", cmtErr)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, cmtErr)
+	}
+
+	return &vehicle, nil
+}
+
+// getSlotUUIDByID retrieves the internal integer ID of a slot given its UUID.
+func getSlotUUIDByID(ctx context.Context, tx *sql.Tx, l *slog.Logger, slotID int) (uuid.UUID, common.AppError) {
+	var slotUUID uuid.UUID
+	err := tx.QueryRowContext(ctx, `SELECT uuid FROM slots WHERE id = $1`, slotID).Scan(&slotUUID)
+	if errors.Is(err, sql.ErrNoRows) {
+		l.Error("slot not found", "err", err)
+		return uuid.Nil, common.NewNotFoundError(common.ErrUnexpectedDatabase)
+	} else if err != nil {
+		l.Error("error fetching slot uuid by id", "err", err)
+		return uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+	return slotUUID, nil
 }
