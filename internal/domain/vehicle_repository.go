@@ -58,21 +58,12 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 		}
 	}()
 
-	// Check for existing vehicle with SELECT EXISTS
-	var exists bool
-	err = tx.QueryRowContext(ctx, `
-        SELECT EXISTS(SELECT 1 FROM vehicles WHERE registration_number = $1)
-    `, regNum).Scan(&exists)
-
-	if err != nil {
-		v.l.Error("error checking vehicle with same reg name existence", "err", err)
-		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
-	} else if exists {
-		v.l.Error("vehicle with this registration number already exists", "registrationNumber", regNum)
-		return nil, common.NewConflictError("vehicle with this registration number already exists")
+	// Find existing vehicle with the same registration number that hasn't been unparked.
+	if appErr := v.isVehicleAlreadyParked(ctx, tx, regNum); appErr != nil {
+		return nil, appErr
 	}
 
-	slotID, slotUUID, appErr := v.findNearestAvailableSlot(ctx, tx, plID)
+	slotID, slotUUID, appErr := v.findNearestAvailableSlot(ctx, tx, plID, regNum)
 	if err != nil {
 		return nil, appErr
 	}
@@ -105,14 +96,27 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 }
 
 // findNearestAvailableSlot performs the following steps to locate the nearest vacant slot while preserving data integrity:
-// 1. Retrieves the slotID (int) for efficient querying to availability status update  and slotUUID for client response.
-// 2. Executes a query with 'FOR UPDATE'  to lock the nearest available slot, ensuring that concurrent transactions cannot claim the same slot.
-// 3. 409 Conflict error if the parking lot is full, 500 Internal Server Error if unexpected database errors occur during the process.
-func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *sql.Tx, plID int) (int, uuid.UUID, common.AppError) {
+// 1. Existence Check for Vehicle with the Same Registration Number (potential optimization: add an index on registration_number column)
+// 2. Retrieves the slotID (int) for efficient querying to availability status update  and slotUUID for client response.
+// 3. Executes a query with 'FOR UPDATE'  to lock the nearest available slot, ensuring that concurrent transactions cannot claim the same slot.
+// 4. 409 Conflict error if the parking lot is full, 500 Internal Server Error if unexpected database errors occur during the process.
+func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *sql.Tx, plID int, regNum string) (int, uuid.UUID, common.AppError) {
+	var exists bool
+	err := tx.QueryRowContext(ctx, `
+       SELECT EXISTS(SELECT 1 FROM vehicles WHERE registration_number = $1 AND unparked_at IS NULL)
+    `, regNum).Scan(&exists)
+
+	if err != nil {
+		v.l.Error("error checking vehicle existence in the slot", "err", err)
+		return 0, uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	} else if exists {
+		return 0, uuid.Nil, common.NewConflictError("vehicle with this registration number is already parked")
+	}
+
 	var slotID int
 	var slotUUID uuid.UUID
 
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
        SELECT id, uuid FROM slots 
        WHERE parking_lot_id = $1 AND is_available = true AND is_maintenance= false
        ORDER BY slot_number
@@ -224,4 +228,24 @@ func getSlotUUIDByID(ctx context.Context, tx *sql.Tx, l *slog.Logger, slotID int
 		return uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 	return slotUUID, nil
+}
+
+func (v *VehicleRepositoryDB) isVehicleAlreadyParked(ctx context.Context, tx *sql.Tx, regNum string) common.AppError {
+	var existingVehicleID int
+	err := tx.QueryRowContext(ctx, `
+        SELECT id FROM vehicles 
+        WHERE registration_number = $1 
+        AND unparked_at IS NULL
+    `, regNum).Scan(&existingVehicleID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+
+		v.l.Error("error checking existing vehicle parking status", "err", err)
+		return common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+
+	return nil
 }

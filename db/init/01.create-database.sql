@@ -23,14 +23,13 @@ CREATE TABLE IF NOT EXISTS vehicles
 (
     id                  SERIAL PRIMARY KEY,
     uuid          UUID DEFAULT uuid_generate_v4(),
-    registration_number VARCHAR(255) NOT NULL UNIQUE,
+    registration_number VARCHAR(255) NOT NULL,
     slot_id             INTEGER      NOT NULL REFERENCES slots (id),
     parked_at           TIMESTAMPTZ    NOT NULL,
     unparked_at         TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX idx_parking_lots_name ON parking_lots (name);
-CREATE UNIQUE INDEX idx_vehicles_registration_number ON vehicles (registration_number);
 CREATE UNIQUE INDEX idx_parking_lots_uuid ON parking_lots (uuid);
 CREATE UNIQUE INDEX idx_slots_uuid ON slots (uuid);
 CREATE UNIQUE INDEX idx_vehicles_uuid ON vehicles (uuid);
