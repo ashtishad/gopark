@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -31,11 +30,16 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 
 // ParkVehicle performs the following within a serializable transaction to guarantee atomicity:
 // 1. Locates the nearest available slot in the specified parking lot (using slot numbers) and locks the slot to prevent concurrent updates.
-// 2. Marks the selected slot as unavailable in the database.
+// 2. Parking slots are numbered 1,2,3....n, then we still start from 1 and pick the available one, then Mark this slot as unavailable in the database.
 // 3. Creates a new vehicle record associated with the slot and the current UTC timestamp.
 // 4. Returns a 409 Conflict error if the parking lot is full.
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
-func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, parkingLotID uuid.UUID, registrationNumber string) (*Vehicle, common.AppError) {
+func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, registrationNumber string) (*Vehicle, common.AppError) {
+	plID, appErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
 	tx, err := v.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		v.l.Error("error creating park vehicle transaction", "err", err)
@@ -51,7 +55,7 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, parkingLotID uuid
 		}
 	}()
 
-	slotID, slotUUID, appErr := v.findNearestAvailableSlot(ctx, tx, parkingLotID)
+	slotID, slotUUID, appErr := v.findNearestAvailableSlot(ctx, tx, plID)
 	if err != nil {
 		return nil, appErr
 	}
@@ -69,9 +73,8 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, parkingLotID uuid
 		ParkedAt:           time.Now().UTC(),
 	}
 
-	err = tx.QueryRowContext(ctx, "INSERT INTO vehicles (vehicle_id, registration_number, slot_id, parked_at) VALUES ($1, $2, $3, $4) RETURNING vehicle_id",
-		newVehicle.ID, newVehicle.RegistrationNumber, slotID, newVehicle.ParkedAt).Scan(&newVehicle.ID)
-	if err != nil {
+	vehicleInsertQuery := `INSERT INTO vehicles (uuid, registration_number, slot_id, parked_at) VALUES ($1, $2, $3, $4)`
+	if _, err = tx.ExecContext(ctx, vehicleInsertQuery, newVehicle.ID, newVehicle.RegistrationNumber, slotID, newVehicle.ParkedAt); err != nil {
 		v.l.Error("error creating vehicle record", "err", err)
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
@@ -85,38 +88,28 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, parkingLotID uuid
 }
 
 // findNearestAvailableSlot performs the following steps to locate the nearest vacant slot while preserving data integrity:
-// 1. Retrieves the internal ID (integer) of the parking lot based on the provided UUID for efficient database querying.
+// 1. Retrieves the slotID (int) for efficient querying to availability status update  and slotUUID for client response.
 // 2. Executes a query with 'FOR UPDATE'  to lock the nearest available slot, ensuring that concurrent transactions cannot claim the same slot.
-// 3. Returns a 409 Conflict error if the parking lot is full.
-// 4. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
-// Note: This method returns both the internal slot ID (int) for database interactions and the slot UUID for the client response.
-func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *sql.Tx, parkingLotID uuid.UUID) (int, uuid.UUID, common.AppError) {
-	var id int
-	var slotID uuid.UUID
+// 3. 409 Conflict error if the parking lot is full, 500 Internal Server Error if unexpected database errors occur during the process.
+func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *sql.Tx, plID int) (int, uuid.UUID, common.AppError) {
+	var slotID int
+	var slotUUID uuid.UUID
 
-	var parkingLotInternalID int
 	err := tx.QueryRowContext(ctx, `
-       SELECT id FROM parking_lots WHERE parking_lot_id = $1`, parkingLotID).Scan(&parkingLotInternalID)
-	if err != nil {
-		v.l.Error("unable to get parking lot internal id from uuid", "err", err)
-		return 0, uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
-	}
-
-	err = tx.QueryRowContext(ctx, `
-       SELECT id, slot_id FROM slots 
-       WHERE parking_lot_id = $1 AND is_available = true
+       SELECT id, uuid FROM slots 
+       WHERE parking_lot_id = $1 AND is_available = true AND is_maintenance= false
        ORDER BY slot_number
        LIMIT 1 
-       FOR UPDATE`, parkingLotInternalID).Scan(&id, &slotID)
+       FOR UPDATE`, plID).Scan(&slotID, &slotUUID)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		v.l.Error(fmt.Sprintf("parking lot is full at %s", parkingLotID))
+		v.l.Error("parking lot is full", "parking_lot_id", plID)
 		return 0, uuid.Nil, common.NewConflictError("parking lot is full")
 	case err != nil:
 		v.l.Error("error finding available slot", "err", err)
 		return 0, uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	default:
-		return id, slotID, nil
+		return slotID, slotUUID, nil
 	}
 }

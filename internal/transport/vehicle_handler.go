@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/ashtishad/gopark/internal/common"
 	"github.com/ashtishad/gopark/internal/domain"
 	"github.com/google/uuid"
 )
@@ -16,11 +15,6 @@ type ParkVehicleRequest struct {
 	RegistrationNumber string `json:"registrationNumber"`
 }
 
-// ParkVehicleResponse represents the parked vehicle information returned in the HTTP response
-type ParkVehicleResponse struct {
-	Vehicle *domain.Vehicle `json:"vehicle"`
-}
-
 type VehicleHandler struct {
 	Repo   *domain.VehicleRepositoryDB
 	Logger *slog.Logger
@@ -28,24 +22,19 @@ type VehicleHandler struct {
 
 // Park handles HTTP requests to park a vehicle
 func (h *VehicleHandler) Park(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, common.NewBadRequestError("only POST requests supported").Error(), http.StatusBadRequest)
+	var reqBody ParkVehicleRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request payload"})
 		return
 	}
 
-	var requestBody ParkVehicleRequest
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, common.NewBadRequestError("invalid request payload").Error(), http.StatusBadRequest)
-		return
-	}
-
-	parkingLotID, err := uuid.Parse(r.PathValue("id"))
+	parkingLotID, err := uuid.Parse(r.PathValue("id")) // go 1.22 introduced path param from routes.
 	if err != nil {
-		http.Error(w, common.NewBadRequestError("invalid parking lot ID format").Error(), http.StatusBadRequest)
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot ID format"})
 		return
 	}
 
-	parkedVehicle, appErr := h.Repo.ParkVehicle(r.Context(), parkingLotID, requestBody.RegistrationNumber)
+	parkedVehicle, appErr := h.Repo.ParkVehicle(r.Context(), parkingLotID, reqBody.RegistrationNumber)
 	if appErr != nil {
 		writeResponse(w, appErr.Code(), map[string]string{"error": appErr.Error()})
 		return
