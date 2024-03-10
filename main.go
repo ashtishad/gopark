@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ashtishad/gopark/db/conn"
 	"github.com/ashtishad/gopark/internal/common"
 	"github.com/ashtishad/gopark/internal/domain"
+	"github.com/ashtishad/gopark/internal/infra/postgres"
 	"github.com/ashtishad/gopark/internal/transport"
 )
 
@@ -25,7 +25,7 @@ func main() {
 	sanityCheck(logger)
 
 	// 3. Get postgres database client
-	dbClient := conn.GetDBClient(logger)
+	dbClient := postgres.GetDBClient(logger)
 
 	defer dbClient.Close()
 

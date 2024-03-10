@@ -12,7 +12,6 @@ To run the application using the Makefile:
 4. Ensure the Docker Desktop application is running and Run `docker-compose up`  -> For Postgres dependency.
 5. Execute the command: `make run`
 
-
 ### Request/response payload structures (JSON)
 
 1.Create A Parking Lot: POST /parking-lots/:id/slots
