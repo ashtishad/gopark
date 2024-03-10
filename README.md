@@ -52,6 +52,8 @@ To run the application using the Makefile:
 
 ### Request/response payload structures (JSON)
 
+[POSTMAN WORKSPACE LINK](https://www.postman.com/altimetry-cosmonaut-1609324/workspace/go-park)
+
 1.Create A Parking Lot: POST /parking-lots/:id/slots
 
 Request:
@@ -198,7 +200,7 @@ Possible Errors
 5.Daily Report, GET /parking-lots/:id/report/:date (e.g., /parking-lots/123/report/2023-11-22)
 
 Request None (Parking lot ID and date are part of the URL path)
-This endpoint expects the date in the YYYY-MM-DD format.
+This endpoint expects the date in the YYYY-MM-DD, -> 4 digit year, 2 digit month, 2 digit day.
 
 Response:
 ```
