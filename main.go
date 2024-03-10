@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -28,12 +27,7 @@ func main() {
 	// 3. Get postgres database client
 	dbClient := conn.GetDBClient(logger)
 
-	defer func(dbClient *sql.DB) {
-		if dbClsErr := dbClient.Close(); dbClsErr != nil {
-			logger.Error("unable to close db", "err", dbClsErr)
-			os.Exit(1)
-		}
-	}(dbClient)
+	defer dbClient.Close()
 
 	// 4. Wire up dependencies
 	parkingLotRepo := domain.NewParkingLotRepoDB(dbClient, logger)
@@ -61,8 +55,8 @@ func main() {
 	// 7. Start the Server
 	logger.Info("Server starting...", slog.String("address", srv.Addr))
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("Error starting server", "err", err)
-		os.Exit(1)
+		logger.Error("error starting server", "err", err)
+		return
 	}
 }
 
