@@ -1,4 +1,17 @@
-# gopark
+# go-park
+
+### How To Run The App
+
+###### Using Makefile and Docker-compose
+
+To run the application using the Makefile:
+
+1. This app tailored for Go 1.22 and later, Ensure you installed this specific version locally.
+2. Open your terminal and navigate to the project's root directory.
+3. (Optional) Adjust the environment variables in the Makefile as necessary to fit your setup, otherwise, defaults will be loaded.
+4. Ensure the Docker Desktop application is running and Run `docker-compose up`  -> For Postgres dependency.
+5. Execute the command: `make run`
+
 
 ### Request/response payload structures (JSON)
 
@@ -163,3 +176,6 @@ Possible Errors
 * Not Found (404): Parking lot doesn't exist.
 * Bad Request (400): Invalid date format.
 * Internal Server Error (500): Database query issues.
+
+
+<p align="right"><a href="#go-park">↑ Top</a></p>
