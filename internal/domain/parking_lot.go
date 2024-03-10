@@ -14,6 +14,12 @@ type ParkingLot struct {
 	Slots        []Slot    `json:"slots"`
 }
 
+type ParkingLotStatus struct {
+	ParkingLotID uuid.UUID    `json:"parkingLotId"`
+	Name         string       `json:"name"`
+	Slots        []SlotStatus `json:"slots"`
+}
+
 type Slot struct {
 	ID            uuid.UUID `json:"id"`
 	SlotNumber    int       `json:"slotNumber"`
@@ -27,8 +33,8 @@ type SlotStatus struct {
 	ParkedAt        *time.Time     `json:"parkedAt,omitempty"`
 }
 
-type ParkingLotStatus struct {
-	ParkingLotID uuid.UUID    `json:"parkingLotId"`
-	Name         string       `json:"name"`
-	Slots        []SlotStatus `json:"slots"`
+type DailyReport struct {
+	TotalVehiclesParked int `json:"totalVehiclesParked"`
+	TotalParkingHours   int `json:"totalParkingHours"`
+	TotalFeeCollected   int `json:"totalFeeCollected"`
 }

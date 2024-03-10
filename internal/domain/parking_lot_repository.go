@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/ashtishad/gopark/internal/common"
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 type ParkingLotRepository interface {
 	CreateParkingLot(ctx context.Context, lot *ParkingLot) (*ParkingLot, common.AppError)
 	GetParkingLotStatus(ctx context.Context, plUUID uuid.UUID) (*ParkingLotStatus, common.AppError)
+	GetDailyReport(ctx context.Context, parkingLotID uuid.UUID, dateString string) (*DailyReport, common.AppError)
 }
 
 type ParkingLotRepoDB struct {
@@ -175,4 +177,48 @@ func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.
 		Name:         parkingLotName,
 		Slots:        slots,
 	}, nil
+}
+
+// GetDailyReport generates a report summarizing parking activity for a specific parking lot on a given date.
+// This includes the total number of vehicles parked, total parking hours (rounded up), and total fees collected.
+// The report is essential for parking lot managers to analyze usage and revenue.
+// Query Explanation:
+// 1. Calculates the total vehicles parked using COUNT(*).
+// 2. Calculates total parking hours by summing durations (in seconds) after applying CEIL to round up to the nearest hour.
+// 3. Calculates total fees by multiplying the rounded parking hours with the hourly rate (10).
+func (r *ParkingLotRepoDB) GetDailyReport(ctx context.Context, plUUID uuid.UUID, reportDate time.Time) (*DailyReport, common.AppError) {
+	startDate := reportDate
+	endDate := reportDate.AddDate(0, 0, 1)
+
+	plID, appErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	var report DailyReport
+	sqlDailyReport := `
+   SELECT 
+       COUNT(*) as total_vehicles_parked,
+       SUM(CEIL(EXTRACT(EPOCH FROM (v.unparked_at - v.parked_at))/3600)) as total_parking_hours, -- Ceil parking duration
+       SUM(CEIL(EXTRACT(EPOCH FROM (v.unparked_at - v.parked_at))/3600) * 10)::int as total_fee_collected
+   FROM vehicles v
+   JOIN slots s ON v.slot_id = s.id
+   JOIN parking_lots pl ON s.parking_lot_id = pl.id
+   WHERE pl.id = $1 
+    AND v.parked_at >= $2 AND v.parked_at < $3 
+`
+	err := r.db.QueryRowContext(ctx, sqlDailyReport, plID, startDate, endDate).Scan(
+		&report.TotalVehiclesParked,
+		&report.TotalParkingHours,
+		&report.TotalFeeCollected)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		r.l.Error("no records found for this date or parking lot", "err", err)
+		return nil, common.NewNotFoundError("no records found for this date or parking lot")
+	} else if err != nil {
+		r.l.Error("error generating daily report", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+
+	return &report, nil
 }
