@@ -18,9 +18,6 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	if e.Err != nil {
-		return fmt.Sprintf("%s: %s", e.Message, e.Err.Error())
-	}
 	return e.Message
 }
 
