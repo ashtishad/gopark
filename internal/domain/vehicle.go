@@ -11,6 +11,6 @@ type Vehicle struct {
 	RegistrationNumber string     `json:"registrationNumber"`
 	SlotID             uuid.UUID  `json:"slotId"`
 	ParkedAt           time.Time  `json:"parkedAt"` // park time would be always recorded
-	UnparkedAt         *time.Time `json:"unparkedAt"`
-	Fee                int        `json:"fee"`
+	UnparkedAt         *time.Time `json:"unparkedAt,omitempty"`
+	Fee                int        `json:"fee,omitempty"`
 }

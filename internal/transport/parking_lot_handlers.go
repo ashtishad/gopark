@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ashtishad/gopark/internal/domain"
+	"github.com/google/uuid"
 )
 
 type ParkingLotHandler struct {
@@ -33,4 +34,20 @@ func (h *ParkingLotHandler) CreateParkingLot(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeResponse(w, http.StatusCreated, createdLot)
+}
+
+func (h *ParkingLotHandler) GetParkingLotStatus(w http.ResponseWriter, r *http.Request) {
+	plUUID, err := uuid.Parse(r.PathValue("id")) // go 1.22 introduced path param from routes.
+	if err != nil {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot ID format"})
+		return
+	}
+
+	status, appErr := h.Repo.GetParkingLotStatus(r.Context(), plUUID)
+	if appErr != nil {
+		writeResponse(w, appErr.Code(), map[string]string{"error": appErr.Error()})
+		return
+	}
+
+	writeResponse(w, http.StatusOK, status)
 }

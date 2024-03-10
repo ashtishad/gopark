@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log/slog"
 
 	"github.com/ashtishad/gopark/internal/common"
@@ -12,6 +13,7 @@ import (
 // ParkingLotRepository defines the interface for interacting with parking lot data in the postgresql database.
 type ParkingLotRepository interface {
 	CreateParkingLot(ctx context.Context, lot *ParkingLot) (*ParkingLot, common.AppError)
+	GetParkingLotStatus(ctx context.Context, plUUID uuid.UUID) (*ParkingLotStatus, common.AppError)
 }
 
 type ParkingLotRepoDB struct {
@@ -123,4 +125,54 @@ func (r *ParkingLotRepoDB) createSlots(ctx context.Context, tx *sql.Tx, lotID in
 	}
 
 	return createdSlots, nil
+}
+
+// GetParkingLotStatus retrieves the current status of a parking lot, including the name of the
+// parking lot and the status of each slot. This information is essential for parking managers
+// to monitor occupancy and identify available parking spaces, returns errors if exists.
+func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.UUID) (*ParkingLotStatus, common.AppError) {
+	plID, apiErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	if apiErr != nil {
+		return nil, apiErr
+	}
+
+	var parkingLotName string
+	var slots []SlotStatus
+
+	if err := r.db.QueryRowContext(ctx, `
+        SELECT name FROM parking_lots WHERE id = $1`, plID).Scan(&parkingLotName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common.NewNotFoundError("parking lot not found")
+		} else if err != nil {
+			r.l.Error("unable to get parking lot name", "err", err)
+			return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+		}
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT s.uuid, v.registration_number, v.parked_at
+        FROM slots s
+        LEFT JOIN vehicles v ON v.slot_id = s.id
+        WHERE s.parking_lot_id = $1`, plID)
+	if err != nil {
+		r.l.Error("unable to get slot info", "err", err)
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var slot SlotStatus
+		if scnErr := rows.Scan(&slot.SlotID, &slot.RegistrationNum, &slot.ParkedAt); scnErr != nil {
+			r.l.Error("unable to scan slot info", "err", scnErr)
+			return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, scnErr)
+		}
+
+		slots = append(slots, slot)
+	}
+
+	return &ParkingLotStatus{
+		ParkingLotID: plUUID,
+		Name:         parkingLotName,
+		Slots:        slots,
+	}, nil
 }

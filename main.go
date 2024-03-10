@@ -49,6 +49,7 @@ func main() {
 	// 6. Route Registration (using a router or a simple mux)
 	router := http.NewServeMux()
 	router.HandleFunc("POST /parking-lots", parkingLotHandler.CreateParkingLot)
+	router.HandleFunc("GET /parking-lots/{id}/status", parkingLotHandler.GetParkingLotStatus)
 	router.HandleFunc("POST /parking-lots/{id}/park", vehicleHandler.Park)
 	router.HandleFunc("POST /parking-lots/{id}/unpark", vehicleHandler.Unpark)
 	srv.Handler = router
