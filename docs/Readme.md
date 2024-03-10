@@ -172,13 +172,14 @@ Possible Errors
 5.Daily Report, GET /parking-lots/:id/report/:date (e.g., /parking-lots/123/report/2023-11-22)
 
 Request None (Parking lot ID and date are part of the URL path)
+This endpoint expects the date in the YYYY-MM-DD format.
 
 Response:
-
-```{
-"total_vehicles_parked": 5,
-"total_parking_time": 20, // Hours
-"total_fee_collected": 200
+```
+{
+    "totalVehiclesParked": 6,
+    "TotalParkingHours": 3,
+    "totalFeeCollected": 30
 }
 ```
 
