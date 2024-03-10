@@ -75,7 +75,6 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 }
 
 // parkingLotExistsByName determines if a parking lot with the given name exists, used to prevent duplicate names.
-// ToDO: Think about creating a database index on name column.
 func (r *ParkingLotRepoDB) parkingLotExistsByName(ctx context.Context, tx *sql.Tx, name string) common.AppError {
 	var exists bool
 	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM parking_lots WHERE name = $1)", name).Scan(&exists)

@@ -15,6 +15,11 @@ type ParkVehicleRequest struct {
 	RegistrationNumber string `json:"registrationNumber"`
 }
 
+// UnparkVehicleRequest represents the request for unparking
+type UnparkVehicleRequest struct {
+	RegistrationNumber string `json:"registrationNumber"`
+}
+
 type VehicleHandler struct {
 	Repo   *domain.VehicleRepositoryDB
 	Logger *slog.Logger
@@ -41,4 +46,21 @@ func (h *VehicleHandler) Park(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeResponse(w, http.StatusCreated, parkedVehicle)
+}
+
+// Unpark handles HTTP requests for unparking vehicles
+func (h *VehicleHandler) Unpark(w http.ResponseWriter, r *http.Request) {
+	var reqBody UnparkVehicleRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request payload"})
+		return
+	}
+
+	unparkedVehicle, appErr := h.Repo.UnparkVehicle(r.Context(), reqBody.RegistrationNumber)
+	if appErr != nil {
+		writeResponse(w, appErr.Code(), map[string]string{"error": appErr.Error()})
+		return
+	}
+
+	writeResponse(w, http.StatusOK, unparkedVehicle)
 }
