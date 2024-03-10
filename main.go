@@ -50,6 +50,7 @@ func main() {
 	router := http.NewServeMux()
 	router.HandleFunc("POST /parking-lots", parkingLotHandler.CreateParkingLot)
 	router.HandleFunc("POST /parking-lots/{id}/park", vehicleHandler.Park)
+	router.HandleFunc("POST /parking-lots/{id}/unpark", vehicleHandler.Unpark)
 	srv.Handler = router
 
 	// 7. Start the Server
@@ -64,7 +65,7 @@ func main() {
 func sanityCheck(l *slog.Logger) {
 	defaultEnvVars := map[string]string{
 		"API_HOST":  "127.0.0.1",
-		"API_PORT":  "8000",
+		"API_PORT":  "8080",
 		"DB_USER":   "postgres",
 		"DB_PASSWD": "postgres",
 		"DB_HOST":   "127.0.0.1",
