@@ -51,15 +51,15 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 		return nil, appErr
 	}
 
-	var createdUUID uuid.UUID
-	var createdID int
-	err = tx.QueryRowContext(ctx, "INSERT INTO parking_lots (name) VALUES ($1) RETURNING id, parking_lot_id;", lot.Name).Scan(&createdID, &createdUUID)
+	var plUUID uuid.UUID
+	var plID int
+	err = tx.QueryRowContext(ctx, "INSERT INTO parking_lots (name) VALUES ($1) RETURNING id, uuid;", lot.Name).Scan(&plID, &plUUID)
 	if err != nil {
 		r.l.Error("error creating parking lot", "err", err)
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
-	slots, csErr := r.createSlots(ctx, tx, createdID, lot.DesiredSlots)
+	slots, csErr := r.createSlots(ctx, tx, plID, lot.DesiredSlots)
 	if err != nil {
 		return nil, csErr
 	}
@@ -70,11 +70,12 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 	}
 
 	lot.Slots = slots
-	lot.ID = createdUUID
+	lot.ID = plUUID
 	return lot, nil
 }
 
 // parkingLotExistsByName determines if a parking lot with the given name exists, used to prevent duplicate names.
+// ToDO: Think about creating a database index on name column.
 func (r *ParkingLotRepoDB) parkingLotExistsByName(ctx context.Context, tx *sql.Tx, name string) common.AppError {
 	var exists bool
 	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM parking_lots WHERE name = $1)", name).Scan(&exists)
@@ -84,6 +85,7 @@ func (r *ParkingLotRepoDB) parkingLotExistsByName(ctx context.Context, tx *sql.T
 	}
 
 	if exists {
+		r.l.Error("parking lot with this name already exists", "name", name)
 		return common.NewConflictError("parking lot with this name already exists")
 	}
 
@@ -95,24 +97,26 @@ func (r *ParkingLotRepoDB) createSlots(ctx context.Context, tx *sql.Tx, lotID in
 	stmt, err := tx.PrepareContext(ctx, `
         INSERT INTO slots (parking_lot_id, slot_number) 
         VALUES ($1, $2)
-        RETURNING slot_id
+        RETURNING uuid
     `)
 	if err != nil {
 		r.l.Error("error preparing slot creation statement", "err", err)
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
+
 	defer stmt.Close()
 
-	var createdSlots []Slot
+	createdSlots := make([]Slot, 0, numSlots)
 	for i := 1; i <= numSlots; i++ {
-		var slotID uuid.UUID
-		execErr := stmt.QueryRowContext(ctx, lotID, i).Scan(&slotID)
+		var slotUUID uuid.UUID
+		execErr := stmt.QueryRowContext(ctx, lotID, i).Scan(&slotUUID)
 		if execErr != nil {
 			r.l.Error("error creating slots", "err", execErr)
 			return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, execErr)
 		}
+
 		createdSlots = append(createdSlots, Slot{
-			ID:            slotID,
+			ID:            slotUUID,
 			SlotNumber:    i,
 			IsAvailable:   true,
 			IsMaintenance: false,
