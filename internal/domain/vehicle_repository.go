@@ -14,8 +14,8 @@ import (
 
 // VehicleRepository defines the interface for interacting with vehicle data(park, unpark) in the postgresql database.
 type VehicleRepository interface {
-	ParkVehicle(ctx context.Context, parkingLotID uuid.UUID, registrationNumber string, userID uuid.UUID) (*Vehicle, common.AppError)
-	UnparkVehicle(ctx context.Context, registrationNumber string) (*Vehicle, common.AppError)
+	ParkVehicle(ctx context.Context, plUUID uuid.UUID, regNum string) (*Vehicle, common.AppError)
+	UnparkVehicle(ctx context.Context, regNum string) (*Vehicle, common.AppError)
 }
 
 type VehicleRepositoryDB struct {
@@ -37,7 +37,7 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 // 4. Returns a 409 Conflict error if the parking lot is full.
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
 // ToDo: Make Registration Number Unique
-func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, registrationNumber string) (*Vehicle, common.AppError) {
+func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, regNum string) (*Vehicle, common.AppError) {
 	plID, apiErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
 	if apiErr != nil {
 		return nil, apiErr
@@ -62,13 +62,13 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 	var exists bool
 	err = tx.QueryRowContext(ctx, `
         SELECT EXISTS(SELECT 1 FROM vehicles WHERE registration_number = $1)
-    `, registrationNumber).Scan(&exists)
+    `, regNum).Scan(&exists)
 
 	if err != nil {
 		v.l.Error("error checking vehicle with same reg name existence", "err", err)
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	} else if exists {
-		v.l.Error("vehicle with this registration number already exists", "registrationNumber", registrationNumber)
+		v.l.Error("vehicle with this registration number already exists", "registrationNumber", regNum)
 		return nil, common.NewConflictError("vehicle with this registration number already exists")
 	}
 
@@ -85,7 +85,7 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 
 	newVehicle := Vehicle{
 		ID:                 uuid.New(),
-		RegistrationNumber: registrationNumber,
+		RegistrationNumber: regNum,
 		SlotID:             slotUUID,
 		ParkedAt:           time.Now().UTC(),
 	}
