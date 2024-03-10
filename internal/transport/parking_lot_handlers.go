@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/ashtishad/gopark/internal/domain"
 	"github.com/google/uuid"
@@ -50,4 +51,27 @@ func (h *ParkingLotHandler) GetParkingLotStatus(w http.ResponseWriter, r *http.R
 	}
 
 	writeResponse(w, http.StatusOK, status)
+}
+
+func (h *ParkingLotHandler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
+	plUUID, err := uuid.Parse(r.PathValue("id")) // go 1.22 introduced path param from routes.
+	if err != nil {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot ID format"})
+		return
+	}
+
+	// Validate date format (YYYY-MM-DD)
+	reportDate, err := time.Parse("2006-01-02", r.PathValue("date"))
+	if err != nil {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid parking lot date format"})
+		return
+	}
+
+	report, appErr := h.Repo.GetDailyReport(r.Context(), plUUID, reportDate)
+	if appErr != nil {
+		writeResponse(w, appErr.Code(), map[string]string{"error": appErr.Error()})
+		return
+	}
+
+	writeResponse(w, http.StatusOK, report)
 }
