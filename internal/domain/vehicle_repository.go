@@ -129,6 +129,7 @@ func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *
 		v.l.Error("error finding available slot", "err", err)
 		return 0, uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	default:
+		v.l.Info("Chosen nearest slot available", "slot id", slotID, "slot uuid", slotUUID)
 		return slotID, slotUUID, nil
 	}
 }

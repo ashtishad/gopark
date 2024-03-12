@@ -152,7 +152,7 @@ func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-        SELECT s.uuid, v.registration_number, v.parked_at
+        SELECT s.uuid, v.registration_number, v.parked_at, v.unparked_at
         FROM slots s
         LEFT JOIN vehicles v ON v.slot_id = s.id
         WHERE s.parking_lot_id = $1`, plID)
@@ -164,7 +164,7 @@ func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.
 
 	for rows.Next() {
 		var slot SlotStatus
-		if scnErr := rows.Scan(&slot.SlotID, &slot.RegistrationNum, &slot.ParkedAt); scnErr != nil {
+		if scnErr := rows.Scan(&slot.SlotID, &slot.RegistrationNum, &slot.ParkedAt, &slot.UnparkedAt); scnErr != nil {
 			r.l.Error("unable to scan slot info", "err", scnErr)
 			return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, scnErr)
 		}

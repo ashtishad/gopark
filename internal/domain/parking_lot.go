@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,13 +27,14 @@ type Slot struct {
 }
 
 type SlotStatus struct {
-	SlotID          uuid.UUID      `json:"slotId"`
-	RegistrationNum sql.NullString `json:"registrationNumber,omitempty"`
-	ParkedAt        *time.Time     `json:"parkedAt,omitempty"`
+	SlotID          uuid.UUID  `json:"slotId"`
+	RegistrationNum *string    `json:"registrationNumber"`
+	ParkedAt        *time.Time `json:"parkedAt"`
+	UnparkedAt      *time.Time `json:"unparkedAt"`
 }
 
 type DailyReport struct {
-	TotalVehiclesParked int `json:"totalVehiclesParked"`
-	TotalParkingHours   int `json:"totalParkingHours"`
-	TotalFeeCollected   int `json:"totalFeeCollected"`
+	TotalVehiclesParked *int `json:"totalVehiclesParked"`
+	TotalParkingHours   *int `json:"totalParkingHours"`
+	TotalFeeCollected   *int `json:"totalFeeCollected"`
 }
