@@ -40,6 +40,7 @@ To run the application using the Makefile:
 │       └── docker
 │         └── initdb
 │             ├── 01.create-database.sql  ← Full gopark database schema in docker entrypoint.
+│             ├── 02.generate-data.sql    ← Seed data gopark database schema in docker entrypoint.
 ├── .gitignore                            ← Specifies intentionally untracked files to ignore.
 ├── .golangci.yaml                        ← Configuration for golangci-lint.
 ├── docker-compose.yaml                   ← Docker service setup for development environments.
@@ -59,39 +60,45 @@ To run the application using the Makefile:
 Request:
 ```
 {
-    "name": "Gladson Load Parking",
-    "desiredSlots": 4
+    "name": "Parking Lot 1",
+    "desiredSlots": 5
 }
 ```
 Response:
 
 ```
 {
-    "id": "bad082a1-1132-4eee-a68f-0469786dd5bb",
-    "name": "Gladson Load Parking",
-    "desiredSlots": 4,
+    "id": "6d1a1cd3-fa1d-4596-9fc9-1f4cdb4a739c",
+    "name": "Parking Lot 1",
+    "desiredSlots": 5,
     "slots": [
         {
-            "id": "d8a2351b-0f0c-47cb-87a2-22fb7a1eec07",
+            "id": "3f17f943-06d5-4502-9cf0-5e5fa950e04d",
             "slotNumber": 1,
             "isAvailable": true,
             "isMaintenance": false
         },
         {
-            "id": "532a76df-eb88-4dc1-a2ea-d44dc70e2129",
+            "id": "dde4378a-1408-46e6-875e-450e174d0394",
             "slotNumber": 2,
             "isAvailable": true,
             "isMaintenance": false
         },
         {
-            "id": "3b665cae-304d-4b16-9886-3608f41e3f30",
+            "id": "c615b97b-74ef-45c7-b2f4-e6c52e8f8e50",
             "slotNumber": 3,
             "isAvailable": true,
             "isMaintenance": false
         },
         {
-            "id": "75598cd7-0498-4131-9dc1-c234a206f4a7",
+            "id": "29dc8edb-ff0d-4da6-bf91-3fed56a6cd7a",
             "slotNumber": 4,
+            "isAvailable": true,
+            "isMaintenance": false
+        },
+        {
+            "id": "be9e5e81-b0a1-45a3-9621-85bd19054ff6",
+            "slotNumber": 5,
             "isAvailable": true,
             "isMaintenance": false
         }
@@ -110,19 +117,19 @@ Possible Errors
 Request
 ```
 {
-"registrationNumber": "AB-1234"
+"registrationNumber": "ABC-123"
 }
 ```
 
 Response (Success)
 ```
 {
-    "id": "ab423c8e-2c57-410f-a6fc-6b0af3641baf",
-    "registrationNumber": "AB-1234",
-    "slotId": "fbb7afa1-8d64-4c34-9a2f-baef18601646",
-    "parkedAt": "2024-03-09T20:36:09.570456Z",
-    "unparkedAt": null
+    "id": "25bd957a-14ad-40c5-9534-2d158909ef4a",
+    "registrationNumber": "ABC-123",
+    "slotId": "3f17f943-06d5-4502-9cf0-5e5fa950e04d",
+    "parkedAt": "2024-03-12T10:47:27.076353Z"
 }
+
 ```
 
 Possible Errors
@@ -136,19 +143,23 @@ Possible Errors
 Request
 ```
 {
-"registration_number": "AB-1234"
+    "registrationNumber": "ABC-ee767"
 }
+
 ```
 
 
 Response (Success)
 ```
 {
-"slot_id": "8ef6ab22-19aa-45b9-81a8-7e760eeb617c",
-"parked_at": "2023-11-22T14:51:20Z",
-"unparked_at": "2023-11-22T16:33:58Z",
-"fee": 30 // (3 hours * 10)
+    "id": "905f92c9-a4ce-4e2e-a70c-28ac85a255ec",
+    "registrationNumber": "ABC-ee767",
+    "slotId": "3a2e6c01-a84c-44e3-928e-464370f426be",
+    "parkedAt": "2024-03-12T12:18:54.619432+06:00",
+    "unparkedAt": "2024-03-12T18:33:18.827961+06:00",
+    "fee": 70
 }
+
 ```
 
 Possible Errors
@@ -164,31 +175,69 @@ Request None (Parking lot ID is part of the URL path)
 Response
 ```
 {
-    "parkingLotId": "e391fda0-4141-46a8-b805-983228ed20a2",
-    "name": "Blue Road",
+    "parkingLotId": "9a789f4d-314c-4a95-98c6-00330f9e7f0f",
+    "name": "Parking Lot 1",
     "slots": [
         {
-            "slotId": "f7be7f2e-5e15-4627-8e22-980f54b825a9",
-            "registrationNumber": {
-                "String": "AB",
-                "Valid": true
-            },
-            "parkedAt": "2024-03-10T16:50:17.535042+06:00"
+            "slotId": "de6aa47b-e797-46da-b2ec-cfbf7e40a107",
+            "registrationNumber": "ABC-4fdbb",
+            "parkedAt": "2024-03-12T09:58:54.619432+06:00",
+            "unparkedAt": null
         },
         {
-            "slotId": "9f21ab14-0dbc-4751-b4bf-3d713a05c7bb",
-            "registrationNumber": {
-                "String": "",
-                "Valid": false
-            }
+            "slotId": "446af2fd-05b0-4364-96a0-a18b48eba5cb",
+            "registrationNumber": "ABC-71140",
+            "parkedAt": "2024-03-12T09:38:54.619432+06:00",
+            "unparkedAt": null
         },
         {
-            "slotId": "0a4b3b4a-83d8-42bc-b6b4-704ae4feba58",
-            "registrationNumber": {
-                "String": "",
-                "Valid": false
-            }
+            "slotId": "dd8f305a-1bf2-4e4a-bf14-34e11dcdddd1",
+            "registrationNumber": "ABC-a45db",
+            "parkedAt": "2024-03-12T08:18:54.619432+06:00",
+            "unparkedAt": null
         },
+        {
+            "slotId": "37965e92-5815-4899-8e1c-42c63b1852cb",
+            "registrationNumber": "ABC-aa7bc",
+            "parkedAt": "2024-03-12T06:58:54.619432+06:00",
+            "unparkedAt": null
+        },
+        {
+            "slotId": "d5888249-d67d-401c-a838-0e265be12a4f",
+            "registrationNumber": "ABC-ecd50",
+            "parkedAt": "2024-03-12T12:28:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:28:54.620855+06:00"
+        },
+        {
+            "slotId": "607fd861-65b7-409d-b064-b9446e28cca1",
+            "registrationNumber": "ABC-6ce42",
+            "parkedAt": "2024-03-12T11:08:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:28:54.620855+06:00"
+        },
+        {
+            "slotId": "a8c942ce-aa53-4831-8065-16931e33fb2a",
+            "registrationNumber": "ABC-a8454",
+            "parkedAt": "2024-03-12T09:48:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:28:54.620855+06:00"
+        },
+        {
+            "slotId": "c2e14cae-6d08-4d03-8684-6ef1a1766cad",
+            "registrationNumber": "ABC-57770",
+            "parkedAt": "2024-03-12T09:28:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:28:54.620855+06:00"
+        },
+        {
+            "slotId": "1cbe8b9b-2ee0-4ddd-a33c-c59cf4b45f47",
+            "registrationNumber": "ABC-72312",
+            "parkedAt": "2024-03-12T07:08:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:28:54.620855+06:00"
+        },
+        {
+            "slotId": "3a2e6c01-a84c-44e3-928e-464370f426be",
+            "registrationNumber": "ABC-ee767",
+            "parkedAt": "2024-03-12T12:18:54.619432+06:00",
+            "unparkedAt": "2024-03-12T18:33:18.827961+06:00"
+        }
     ]
 }
 ```
@@ -205,10 +254,11 @@ This endpoint expects the date in the YYYY-MM-DD, -> 4 digit year, 2 digit month
 Response:
 ```
 {
-    "totalVehiclesParked": 6,
-    "TotalParkingHours": 3,
-    "totalFeeCollected": 30
+    "totalVehiclesParked": 10,
+    "totalParkingHours": 53,
+    "totalFeeCollected": 530
 }
+
 ```
 
 Possible Errors
