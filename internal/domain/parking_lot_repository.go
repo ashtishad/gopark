@@ -133,7 +133,7 @@ func (r *ParkingLotRepoDB) createSlots(ctx context.Context, tx *sql.Tx, lotID in
 // parking lot and the status of each slot. This information is essential for parking managers
 // to monitor occupancy and identify available parking spaces, returns errors if exists.
 func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.UUID) (*ParkingLotStatus, common.AppError) {
-	plID, apiErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	plID, apiErr := getIDByUUID(ctx, r.db, r.l, tableParkingLots, plUUID)
 	if apiErr != nil {
 		return nil, apiErr
 	}
@@ -190,7 +190,7 @@ func (r *ParkingLotRepoDB) GetDailyReport(ctx context.Context, plUUID uuid.UUID,
 	startDate := reportDate
 	endDate := reportDate.AddDate(0, 0, 1)
 
-	plID, appErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	plID, appErr := getIDByUUID(ctx, r.db, r.l, tableParkingLots, plUUID)
 	if appErr != nil {
 		return nil, appErr
 	}

@@ -37,7 +37,7 @@ func NewVehicleRepoDB(db *sql.DB, l *slog.Logger) *VehicleRepositoryDB {
 // 4. Returns a 409 Conflict error if the parking lot is full.
 // 5. Returns a 500 Internal Server Error if unexpected database errors occur during the process.
 func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID, regNum string) (*Vehicle, common.AppError) {
-	plID, apiErr := getParkingLotIDByUUID(ctx, v.db, v.l, plUUID)
+	plID, apiErr := getIDByUUID(ctx, v.db, v.l, tableParkingLots, plUUID)
 	if apiErr != nil {
 		return nil, apiErr
 	}
