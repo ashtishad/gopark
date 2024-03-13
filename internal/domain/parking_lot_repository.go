@@ -38,7 +38,7 @@ func NewParkingLotRepoDB(db *sql.DB, l *slog.Logger) *ParkingLotRepoDB {
 func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot) (*ParkingLot, common.AppError) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		r.l.Error("error creating parking lot transaction", "err", err)
+		r.l.Error(common.ErrTXBegin, "err", err, "src", "CreateParkingLot")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
@@ -46,7 +46,7 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 		if err != nil {
 			txErr := tx.Rollback()
 			if txErr != nil {
-				r.l.Error("error rolling back the transaction", "err", txErr)
+				r.l.Error(common.ErrTXRollback, "err", txErr, "src", "CreateParkingLot")
 			}
 		}
 	}()
@@ -68,9 +68,9 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 		return nil, csErr
 	}
 
-	if err := tx.Commit(); err != nil {
-		r.l.Error("error committing transaction", "err", err)
-		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	if cmtErr := tx.Commit(); cmtErr != nil {
+		r.l.Error(common.ErrTxCommit, "err", err, "src", "CreateParkingLot")
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, cmtErr)
 	}
 
 	lot.Slots = slots
@@ -133,7 +133,7 @@ func (r *ParkingLotRepoDB) createSlots(ctx context.Context, tx *sql.Tx, lotID in
 // parking lot and the status of each slot. This information is essential for parking managers
 // to monitor occupancy and identify available parking spaces, returns errors if exists.
 func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.UUID) (*ParkingLotStatus, common.AppError) {
-	plID, apiErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	plID, apiErr := getIDByUUID(ctx, r.db, r.l, tableParkingLots, plUUID)
 	if apiErr != nil {
 		return nil, apiErr
 	}
@@ -152,7 +152,7 @@ func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-        SELECT s.uuid, v.registration_number, v.parked_at
+        SELECT s.uuid, v.registration_number, v.parked_at, v.unparked_at
         FROM slots s
         LEFT JOIN vehicles v ON v.slot_id = s.id
         WHERE s.parking_lot_id = $1`, plID)
@@ -164,7 +164,7 @@ func (r *ParkingLotRepoDB) GetParkingLotStatus(ctx context.Context, plUUID uuid.
 
 	for rows.Next() {
 		var slot SlotStatus
-		if scnErr := rows.Scan(&slot.SlotID, &slot.RegistrationNum, &slot.ParkedAt); scnErr != nil {
+		if scnErr := rows.Scan(&slot.SlotID, &slot.RegistrationNum, &slot.ParkedAt, &slot.UnparkedAt); scnErr != nil {
 			r.l.Error("unable to scan slot info", "err", scnErr)
 			return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, scnErr)
 		}
@@ -190,7 +190,7 @@ func (r *ParkingLotRepoDB) GetDailyReport(ctx context.Context, plUUID uuid.UUID,
 	startDate := reportDate
 	endDate := reportDate.AddDate(0, 0, 1)
 
-	plID, appErr := getParkingLotIDByUUID(ctx, r.db, r.l, plUUID)
+	plID, appErr := getIDByUUID(ctx, r.db, r.l, tableParkingLots, plUUID)
 	if appErr != nil {
 		return nil, appErr
 	}
