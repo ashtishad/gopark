@@ -45,7 +45,7 @@ func (h *VehicleHandler) Park(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeResponse(w, http.StatusCreated, parkedVehicle)
+	writeResponse(w, http.StatusOK, parkedVehicle)
 }
 
 // Unpark handles HTTP requests for unparking vehicles
