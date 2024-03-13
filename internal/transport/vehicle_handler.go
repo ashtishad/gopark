@@ -11,7 +11,6 @@ import (
 
 // ParkVehicleRequest represents the information needed to park a vehicle in the HTTP request body
 type ParkVehicleRequest struct {
-	ParkingLotID       string `json:"parkingLotId"`
 	RegistrationNumber string `json:"registrationNumber"`
 }
 
@@ -30,6 +29,11 @@ func (h *VehicleHandler) Park(w http.ResponseWriter, r *http.Request) {
 	var reqBody ParkVehicleRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request payload"})
+		return
+	}
+
+	if reqBody.RegistrationNumber == "" {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "registration number can't be empty"})
 		return
 	}
 
@@ -53,6 +57,11 @@ func (h *VehicleHandler) Unpark(w http.ResponseWriter, r *http.Request) {
 	var reqBody UnparkVehicleRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request payload"})
+		return
+	}
+
+	if reqBody.RegistrationNumber == "" {
+		writeResponse(w, http.StatusBadRequest, map[string]string{"error": "registration number can't be empty"})
 		return
 	}
 
