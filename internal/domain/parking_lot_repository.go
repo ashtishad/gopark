@@ -38,7 +38,7 @@ func NewParkingLotRepoDB(db *sql.DB, l *slog.Logger) *ParkingLotRepoDB {
 func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot) (*ParkingLot, common.AppError) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		r.l.Error("error creating parking lot transaction", "err", err)
+		r.l.Error(common.ErrTXBegin, "err", err, "src", "CreateParkingLot")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
@@ -46,7 +46,7 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 		if err != nil {
 			txErr := tx.Rollback()
 			if txErr != nil {
-				r.l.Error("error rolling back the transaction", "err", txErr)
+				r.l.Error(common.ErrTXRollback, "err", txErr, "src", "CreateParkingLot")
 			}
 		}
 	}()
@@ -68,9 +68,9 @@ func (r *ParkingLotRepoDB) CreateParkingLot(ctx context.Context, lot *ParkingLot
 		return nil, csErr
 	}
 
-	if err := tx.Commit(); err != nil {
-		r.l.Error("error committing transaction", "err", err)
-		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
+	if cmtErr := tx.Commit(); cmtErr != nil {
+		r.l.Error(common.ErrTxCommit, "err", err, "src", "CreateParkingLot")
+		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, cmtErr)
 	}
 
 	lot.Slots = slots

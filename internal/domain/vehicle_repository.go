@@ -44,7 +44,7 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 
 	tx, err := v.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		v.l.Error("error creating park vehicle transaction", "err", err)
+		v.l.Error(common.ErrTXBegin, "err", err, "src", "ParkVehicle")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
@@ -52,7 +52,7 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 		if err != nil {
 			txErr := tx.Rollback()
 			if txErr != nil {
-				v.l.Error("error rolling back the transaction", "err", txErr)
+				v.l.Error(common.ErrTXRollback, "err", txErr, "src", "ParkVehicle")
 			}
 		}
 	}()
@@ -86,7 +86,7 @@ func (v *VehicleRepositoryDB) ParkVehicle(ctx context.Context, plUUID uuid.UUID,
 	}
 
 	if cmtErr := tx.Commit(); err != nil {
-		v.l.Error("error committing transaction", "err", cmtErr)
+		v.l.Error(common.ErrTxCommit, "err", cmtErr, "src", "ParkVehicle")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, cmtErr)
 	}
 
@@ -144,7 +144,7 @@ func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *
 func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) (*Vehicle, common.AppError) {
 	tx, err := v.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		v.l.Error("error creating unpark vehicle transaction", "err", err)
+		v.l.Error(common.ErrTXBegin, "err", err, "src", "UnparkVehicle")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
@@ -152,7 +152,7 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		if err != nil {
 			txErr := tx.Rollback()
 			if txErr != nil {
-				v.l.Error("error rolling back the transaction", "err", txErr)
+				v.l.Error(common.ErrTXRollback, "err", txErr, "src", "UnparkVehicle")
 			}
 		}
 	}()
@@ -167,7 +167,7 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		&vehicle.ID, &slotID, &vehicle.ParkedAt, &vehicle.UnparkedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		v.l.Error("vehicle not found or already unparked", "registration_number", err)
+		v.l.Error("vehicle not found or already unparked", "registration_number", regNum)
 		return nil, common.NewConflictError("vehicle not found or already unparked")
 	} else if err != nil {
 		v.l.Error("error finding vehicle", "err", err)
@@ -196,14 +196,13 @@ func (v *VehicleRepositoryDB) UnparkVehicle(ctx context.Context, regNum string) 
 		return nil, common.NewInternalServerError("error updating vehicle", err)
 	}
 
-	_, err = tx.ExecContext(ctx, "UPDATE slots SET is_available = true WHERE id = $1", slotID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, "UPDATE slots SET is_available = true WHERE id = $1", slotID); err != nil {
 		v.l.Error("error updating slot status", "err", err)
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	}
 
 	if cmtErr := tx.Commit(); cmtErr != nil {
-		v.l.Error("error committing transaction", "err", cmtErr)
+		v.l.Error(common.ErrTxCommit, "err", cmtErr, "src", "UnparkVehicle")
 		return nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, cmtErr)
 	}
 
@@ -215,7 +214,7 @@ func getSlotUUIDByID(ctx context.Context, tx *sql.Tx, l *slog.Logger, slotID int
 	var slotUUID uuid.UUID
 	err := tx.QueryRowContext(ctx, `SELECT uuid FROM slots WHERE id = $1`, slotID).Scan(&slotUUID)
 	if errors.Is(err, sql.ErrNoRows) {
-		l.Error("slot not found", "err", err)
+		l.Error("slot not found", "err", err, "uuid", slotUUID)
 		return uuid.Nil, common.NewNotFoundError(common.ErrUnexpectedDatabase)
 	} else if err != nil {
 		l.Error("error fetching slot uuid by id", "err", err)
