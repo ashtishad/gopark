@@ -131,6 +131,12 @@ Response (Success)
 }
 
 ```
+In Logs
+```
+time=2024-03-13T17:46:24.887+06:00 level=INFO source=vehicle_repository.go:132 msg="Chosen nearest slot available" "slot number"=1 vehicle=ABC-123
+time=2024-03-13T17:46:33.097+06:00 level=INFO source=vehicle_repository.go:132 msg="Chosen nearest slot available" "slot number"=2 vehicle=ABC-124
+
+```
 
 Possible Errors
 * Bad Request (400): Missing or invalid registration_number.
