@@ -111,15 +111,15 @@ func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *
 		return 0, uuid.Nil, common.NewConflictError("vehicle with this registration number is already parked")
 	}
 
-	var slotID int
+	var slotID, slotNum int
 	var slotUUID uuid.UUID
 
 	err = tx.QueryRowContext(ctx, `
-       SELECT id, uuid FROM slots 
+       SELECT id, uuid, slot_number FROM slots 
        WHERE parking_lot_id = $1 AND is_available = true AND is_maintenance= false
        ORDER BY slot_number
        LIMIT 1 
-       FOR UPDATE`, plID).Scan(&slotID, &slotUUID)
+       FOR UPDATE`, plID).Scan(&slotID, &slotUUID, &slotNum)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -129,7 +129,7 @@ func (v *VehicleRepositoryDB) findNearestAvailableSlot(ctx context.Context, tx *
 		v.l.Error("error finding available slot", "err", err)
 		return 0, uuid.Nil, common.NewInternalServerError(common.ErrUnexpectedDatabase, err)
 	default:
-		v.l.Info("Chosen nearest slot available", "slot id", slotID, "slot uuid", slotUUID)
+		v.l.Info("Chosen nearest slot available", "slot number", slotNum, "vehicle", regNum)
 		return slotID, slotUUID, nil
 	}
 }
